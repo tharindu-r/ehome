@@ -13,7 +13,7 @@ import EnergyChart from "@/components/EnergyChart";
 import PowerGraph from "@/components/PowerGraph";
 import CurrentUsageIndicator from "@/components/CurrentUsageIndicator";
 import LoadDistribution from "@/components/LoadDistribution";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const Index = () => {
   const [historicalData, setHistoricalData] = useState<EnergyReading[]>([]);
