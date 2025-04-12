@@ -1,13 +1,15 @@
 
-import { Battery, Sun, ZapIcon } from "lucide-react";
+import { Battery, Sun, ZapIcon, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
 
 interface EnergyHeaderProps {
   batteryPercentage: number;
   currentPower: number;
+  lastUpdated: number; // Add this new prop
 }
 
-const EnergyHeader = ({ batteryPercentage, currentPower }: EnergyHeaderProps) => {
+const EnergyHeader = ({ batteryPercentage, currentPower, lastUpdated }: EnergyHeaderProps) => {
   const isMobile = useIsMobile();
   
   return (
@@ -28,6 +30,13 @@ const EnergyHeader = ({ batteryPercentage, currentPower }: EnergyHeaderProps) =>
         <div className="flex items-center gap-1">
           <Battery className={`h-5 w-5 ${batteryPercentage > 80 ? 'text-energy-battery' : batteryPercentage > 20 ? 'text-energy-grid' : 'text-energy-load'}`} />
           <span className="text-sm font-medium">{batteryPercentage}%</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {format(lastUpdated, 'HH:mm:ss')}
+          </span>
         </div>
       </div>
     </div>

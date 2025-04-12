@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { 
   getHistoricalData, 
@@ -20,6 +19,7 @@ const Index = () => {
   const [currentReading, setCurrentReading] = useState<EnergyReading | null>(null);
   const [stats, setStats] = useState<EnergyStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
 
   // Load distribution data (simulated)
   const loadDistribution = [
@@ -40,6 +40,7 @@ const Index = () => {
         setHistoricalData(data);
         setCurrentReading(reading);
         setStats(energyStats);
+        setLastUpdated(Date.now());
         setIsLoading(false);
       } catch (error) {
         console.error("Error fetching energy data:", error);
@@ -54,6 +55,7 @@ const Index = () => {
       try {
         const newReading = getCurrentReading();
         setCurrentReading(newReading);
+        setLastUpdated(Date.now());
         setHistoricalData(prev => {
           const newData = [...prev, newReading].slice(-96); // Keep last 96 readings
           setStats(getEnergyStats(newData));
@@ -82,7 +84,8 @@ const Index = () => {
     <div className="container px-4 py-6 max-w-6xl mx-auto">
       <EnergyHeader 
         batteryPercentage={stats.batteryPercentage} 
-        currentPower={stats.currentPowerUsage} 
+        currentPower={stats.currentPowerUsage}
+        lastUpdated={lastUpdated}
       />
       
       <EnergyStatsComponent stats={stats} />
