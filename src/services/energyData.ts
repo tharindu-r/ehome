@@ -1,5 +1,5 @@
 
-// Simulated energy monitoring data service
+// Energy monitoring data service using the API
 
 export interface EnergyReading {
   timestamp: number;
@@ -19,73 +19,132 @@ export interface EnergyStats {
   batteryPercentage: number;
 }
 
-// Generate random data within reasonable ranges
-const generateRandomReading = (timestamp: number): EnergyReading => {
-  const solarVoltage = 15 + Math.random() * 10; // 15-25V
-  const chargingVoltage = 12 + Math.random() * 2; // 12-14V
-  const chargingAmps = Math.random() * 10; // 0-10A
-  const batteryPercentage = 30 + Math.random() * 70; // 30-100%
-  const loadWatts = 10 + Math.random() * 190; // 10-200W
+interface ApiResponse {
+  first: string[];
+  second: string[];
+  kwh_positive: string;
+  kwh_negative: string;
+  last_shunt_voltage: string;
+}
 
+// Fetch data from the API
+const fetchApiData = async (): Promise<ApiResponse> => {
+  try {
+    const response = await fetch('https://iot.tharindur.com/mppt/api/json.php?fn=getUpdate');
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch data from API:', error);
+    throw error;
+  }
+};
+
+// Convert API data to our EnergyReading format
+const convertApiDataToReading = (data: ApiResponse): EnergyReading => {
+  // Extract values from the first array
+  const batteryVoltage = parseFloat(data.first[2] || '0');
+  const solarVoltage = parseFloat(data.first[3] || '0');
+  const solarAmps = parseFloat(data.first[5] || '0');
+  
+  // Calculate battery percentage (assuming 10.5V is 0% and 14.4V is 100%)
+  const minVoltage = 10.5;
+  const maxVoltage = 14.4;
+  const batteryPercentage = Math.min(
+    100,
+    Math.max(
+      0,
+      ((batteryVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100
+    )
+  );
+  
+  // Calculate load in watts (using the shunt voltage)
+  const shuntVoltage = parseFloat(data.last_shunt_voltage || '0');
+  const loadWatts = shuntVoltage * batteryVoltage; // Approximation
+  
   return {
-    timestamp,
-    solarVoltage,
-    chargingVoltage,
-    chargingAmps,
+    timestamp: Date.now(),
+    solarVoltage: solarVoltage,
+    chargingVoltage: batteryVoltage,
+    chargingAmps: solarAmps,
     batteryPercentage,
     loadWatts,
   };
 };
 
-// Generate historical data for the past 24 hours, with readings every 15 minutes
-export const getHistoricalData = (): EnergyReading[] => {
-  const now = Date.now();
-  const data: EnergyReading[] = [];
-  
-  // Generate data for the past 24 hours (96 readings at 15 min intervals)
-  for (let i = 0; i < 96; i++) {
-    const timestamp = now - (96 - i) * 15 * 60 * 1000; // 15 minutes in milliseconds
-    data.push(generateRandomReading(timestamp));
-  }
-  
-  return data;
-};
-
-// Simulated real-time reading
-export const getCurrentReading = (): EnergyReading => {
-  return generateRandomReading(Date.now());
-};
-
-// Calculate energy statistics
-export const getEnergyStats = (data: EnergyReading[]): EnergyStats => {
-  // Calculate energy charged in Wh (Voltage * Amps * Hours)
-  let totalEnergyCharged = 0;
-  let totalEnergyDischarged = 0;
-  let peakPower = 0;
-  
-  for (let i = 0; i < data.length - 1; i++) {
-    const duration = (data[i + 1].timestamp - data[i].timestamp) / 1000 / 60 / 60; // hours
-    const power = data[i].chargingVoltage * data[i].chargingAmps; // Watts
+// Generate historical data from recent readings
+export const getHistoricalData = async (): Promise<EnergyReading[]> => {
+  try {
+    const apiData = await fetchApiData();
+    const currentReading = convertApiDataToReading(apiData);
     
-    if (power > peakPower) {
-      peakPower = power;
+    // Create simulated historical data based on the current reading
+    const now = Date.now();
+    const data: EnergyReading[] = [];
+    
+    // Generate 96 readings at 15 min intervals using variations of current data
+    for (let i = 0; i < 96; i++) {
+      const timestamp = now - (96 - i) * 15 * 60 * 1000; // 15 minutes in milliseconds
+      const variationFactor = 0.8 + Math.random() * 0.4; // Random factor between 0.8 and 1.2
+      
+      data.push({
+        timestamp,
+        solarVoltage: currentReading.solarVoltage * variationFactor,
+        chargingVoltage: currentReading.chargingVoltage * (0.95 + Math.random() * 0.1), // Less variation for battery
+        chargingAmps: currentReading.chargingAmps * variationFactor,
+        batteryPercentage: Math.min(100, Math.max(0, currentReading.batteryPercentage * (0.9 + Math.random() * 0.2))),
+        loadWatts: currentReading.loadWatts * variationFactor,
+      });
     }
     
-    if (power > 0) {
-      totalEnergyCharged += power * duration;
-    } else {
-      totalEnergyDischarged += Math.abs(power) * duration;
-    }
+    return data;
+  } catch (error) {
+    console.error('Error generating historical data:', error);
+    return []; // Return empty array on error
   }
-  
-  const latestReading = data[data.length - 1];
-  
-  return {
-    dailyEnergyCharged: Math.round(totalEnergyCharged),
-    dailyEnergyDischarged: Math.round(totalEnergyDischarged),
-    currentPowerUsage: Math.round(latestReading.chargingVoltage * latestReading.chargingAmps),
-    currentLoad: Math.round(latestReading.loadWatts),
-    peakPower: Math.round(peakPower),
-    batteryPercentage: Math.round(latestReading.batteryPercentage),
-  };
+};
+
+// Get current reading from API
+export const getCurrentReading = async (): Promise<EnergyReading> => {
+  try {
+    const apiData = await fetchApiData();
+    return convertApiDataToReading(apiData);
+  } catch (error) {
+    console.error('Error getting current reading:', error);
+    throw error;
+  }
+};
+
+// Calculate energy statistics from readings and kwh data
+export const getEnergyStats = async (data: EnergyReading[]): Promise<EnergyStats> => {
+  try {
+    const apiData = await fetchApiData();
+    const latestReading = data[data.length - 1];
+    
+    // Get the kWh values from the API
+    const dailyEnergyCharged = parseFloat(apiData.kwh_positive) * 1000; // Convert kWh to Wh
+    const dailyEnergyDischarged = Math.abs(parseFloat(apiData.kwh_negative)) * 1000; // Convert kWh to Wh
+    
+    // Calculate peak power
+    let peakPower = 0;
+    for (const reading of data) {
+      const power = reading.chargingVoltage * reading.chargingAmps;
+      if (power > peakPower) {
+        peakPower = power;
+      }
+    }
+    
+    return {
+      dailyEnergyCharged: Math.round(dailyEnergyCharged),
+      dailyEnergyDischarged: Math.round(dailyEnergyDischarged),
+      currentPowerUsage: Math.round(latestReading.chargingVoltage * latestReading.chargingAmps),
+      currentLoad: Math.round(latestReading.loadWatts),
+      peakPower: Math.round(peakPower),
+      batteryPercentage: Math.round(latestReading.batteryPercentage),
+    };
+  } catch (error) {
+    console.error('Error calculating energy stats:', error);
+    throw error;
+  }
 };
