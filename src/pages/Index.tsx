@@ -22,6 +22,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Load distribution data (simulated)
   const loadDistribution = [
@@ -35,7 +36,13 @@ const Index = () => {
     // Load initial data
     const fetchData = async () => {
       try {
+        setIsLoading(true);
+        
         const data = await getHistoricalData();
+        if (data.length === 0) {
+          throw new Error("No historical data received");
+        }
+        
         const reading = await getCurrentReading();
         const energyStats = await getEnergyStats([...data, reading]);
         
@@ -45,11 +52,22 @@ const Index = () => {
         setLastUpdated(Date.now());
         setIsLoading(false);
         setError(null);
+        setRetryCount(0); // Reset retry count on success
       } catch (error) {
         console.error("Error fetching energy data:", error);
-        setError("Failed to load energy data");
-        toast.error("Failed to load energy data. Please try again.");
-        setIsLoading(false);
+        
+        // Increment retry count
+        setRetryCount(prev => prev + 1);
+        
+        if (retryCount < 3) {
+          // Auto-retry up to 3 times
+          toast.error("Connection issue. Retrying...");
+          setTimeout(fetchData, 3000); // Retry after 3 seconds
+        } else {
+          setError("Failed to load energy data. Please try again.");
+          toast.error("Failed to load energy data. Please try again.");
+          setIsLoading(false);
+        }
       }
     };
     
@@ -57,6 +75,8 @@ const Index = () => {
     
     // Set up polling for real-time updates
     const interval = setInterval(async () => {
+      if (error) return; // Don't update if there's an error
+      
       try {
         const newReading = await getCurrentReading();
         setCurrentReading(newReading);
@@ -74,11 +94,12 @@ const Index = () => {
         });
       } catch (error) {
         console.error("Error updating energy data:", error);
+        // Don't set error state for update failures, just log
       }
     }, 30000); // Update every 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [error, retryCount]);
 
   if (isLoading) {
     return (
@@ -101,6 +122,7 @@ const Index = () => {
             onClick={() => {
               setIsLoading(true);
               setError(null);
+              setRetryCount(0);
               window.location.reload();
             }}
           >
