@@ -9,6 +9,7 @@ import {
 } from "@/services/energyData";
 import EnergyHeader from "@/components/EnergyHeader";
 import PowerGraph from "@/components/PowerGraph";
+import ChargingGraph from "@/components/ChargingGraph";
 import BatteryStatus from "@/components/BatteryStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -186,7 +187,10 @@ const Index = () => {
         </Card>
       </div>
 
-      <PowerGraph data={historicalData} />
+      <div className="grid gap-6 mb-6">
+        <ChargingGraph data={historicalData} />
+        <PowerGraph data={historicalData} />
+      </div>
     </div>
   );
 };
