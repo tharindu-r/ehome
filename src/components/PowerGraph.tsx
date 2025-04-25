@@ -1,8 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  AreaChart, 
+  ComposedChart, 
   Area, 
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -20,18 +21,16 @@ const formatXAxis = (timestamp: number): string => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const calculatePower = (item: EnergyReading): number => {
-  return item.chargingVoltage * item.chargingAmps;
-};
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 rounded shadow border">
-        <p className="text-sm font-semibold">{new Date(label).toLocaleString()}</p>
-        <p className="text-sm" style={{ color: payload[0].color }}>
-          {`Power: ${payload[0].value.toFixed(0)} W`}
-        </p>
+      <div className="bg-background border rounded-lg p-3 shadow-lg">
+        <p className="text-sm font-medium mb-2">{new Date(label).toLocaleString()}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm" style={{ color: entry.color }}>
+            {`${entry.name}: ${entry.value.toFixed(1)} W`}
+          </p>
+        ))}
       </div>
     );
   }
@@ -41,12 +40,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const PowerGraph = ({ data }: PowerGraphProps) => {
   const isMobile = useIsMobile();
   
-  // Transform data to calculate power
-  const powerData = data.map(item => ({
-    timestamp: item.timestamp,
-    power: calculatePower(item)
-  }));
-  
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -54,8 +47,8 @@ const PowerGraph = ({ data }: PowerGraphProps) => {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
-          <AreaChart
-            data={powerData}
+          <ComposedChart
+            data={data}
             margin={{
               top: 10,
               right: 10,
@@ -64,28 +57,45 @@ const PowerGraph = ({ data }: PowerGraphProps) => {
             }}
           >
             <defs>
-              <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+              <linearGradient id="solarPowerGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#FFB800" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#FFB800" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="loadGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
               dataKey="timestamp" 
               tickFormatter={formatXAxis} 
               interval={isMobile ? "preserveStartEnd" : "equidistantPreserveStart"} 
               tick={{ fontSize: 12 }}
+              stroke="currentColor"
             />
-            <YAxis tick={{ fontSize: 12 }} />
+            <YAxis 
+              tick={{ fontSize: 12 }} 
+              stroke="currentColor"
+            />
             <Tooltip content={<CustomTooltip />} />
-            <Area 
-              type="monotone" 
-              dataKey="power" 
-              stroke="#8B5CF6" 
-              fillOpacity={1}
-              fill="url(#colorPower)" 
+            <Area
+              type="monotone"
+              dataKey="solarPower"
+              name="Solar Power"
+              stroke="#FFB800"
+              fill="url(#solarPowerGradient)"
+              strokeWidth={2}
             />
-          </AreaChart>
+            <Line
+              type="monotone"
+              dataKey="inverterLoad"
+              name="Inverter Load"
+              stroke="#F43F5E"
+              strokeWidth={2}
+              dot={false}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
