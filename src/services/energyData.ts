@@ -1,4 +1,3 @@
-
 // Energy monitoring data service using the API
 
 export interface EnergyReading {
@@ -141,12 +140,12 @@ const convertApiDataToReading = (mpptData: string[], powerData: string[], charge
   const solarAmps = safeParseFloat(mpptData[5]);
   const batteryLoad = safeParseFloat(chargeData.last_shunt_v);
   
-  // Calculate battery percentage (assuming 10.5V is 0% and 14.4V is 100%)
+  // Calculate battery percentage for 24V system (20V = 0%, 29V = 100%)
   const batteryPercentage = Math.min(
     100,
     Math.max(
       0,
-      ((batteryVoltage - 10.5) / (14.4 - 10.5)) * 100
+      ((batteryVoltage - 20) / (29 - 20)) * 100
     )
   );
   
@@ -154,28 +153,14 @@ const convertApiDataToReading = (mpptData: string[], powerData: string[], charge
   const solarPower = solarVoltage * solarAmps;
   let inverterLoad = 0;
   
-  if (batteryLoad > 0) {
+  if(batteryLoad > 0) {
     inverterLoad = Math.abs(solarPower - ((batteryLoad * 2) * batteryVoltage));
   } else {
     inverterLoad = Math.abs(batteryLoad * 37.77);
   }
-  
-  // Create timestamp from date and time in data
-  let timestamp;
-  try {
-    if (mpptData[0] && mpptData[1]) {
-      const [year, month, day] = mpptData[0].split('-').map(Number);
-      const [hours, minutes, seconds] = mpptData[1].split(':').map(Number);
-      timestamp = new Date(year, month - 1, day, hours, minutes, seconds).getTime();
-    } else {
-      timestamp = Date.now();
-    }
-  } catch (e) {
-    timestamp = Date.now();
-  }
-  
+
   return {
-    timestamp,
+    timestamp: Date.now(),
     solarVoltage,
     chargingVoltage: batteryVoltage,
     chargingAmps: solarAmps,

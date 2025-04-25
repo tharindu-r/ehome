@@ -2,17 +2,15 @@
 import { useEffect, useState } from "react";
 import { 
   getHistoricalData, 
-  getCurrentReading, 
+  getCurrentReading,
   getEnergyStats,
   EnergyReading,
   EnergyStats
 } from "@/services/energyData";
 import EnergyHeader from "@/components/EnergyHeader";
-import EnergyStatsComponent from "@/components/EnergyStats";
-import EnergyChart from "@/components/EnergyChart";
 import PowerGraph from "@/components/PowerGraph";
-import CurrentUsageIndicator from "@/components/CurrentUsageIndicator";
-import LoadDistribution from "@/components/LoadDistribution";
+import BatteryStatus from "@/components/BatteryStatus";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -136,21 +134,59 @@ const Index = () => {
   return (
     <div className="container px-4 py-6 max-w-6xl mx-auto">
       <EnergyHeader 
-        batteryPercentage={stats.batteryPercentage} 
-        currentPower={stats.currentPowerUsage}
+        batteryPercentage={stats?.batteryPercentage || 0}
+        currentPower={stats?.currentPowerUsage || 0}
         lastUpdated={lastUpdated}
       />
       
-      <EnergyStatsComponent stats={stats} />
-      
-      <CurrentUsageIndicator usage={stats.currentLoad} max={500} />
-      
-      <EnergyChart data={historicalData} />
-      
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <PowerGraph data={historicalData} />
-        <LoadDistribution data={loadDistribution} />
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold">Inverter Load</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-energy-load">
+              {currentReading?.inverterLoad.toFixed(0)}W
+            </div>
+            <p className="text-sm text-muted-foreground">Current consumption</p>
+          </CardContent>
+        </Card>
+
+        <BatteryStatus 
+          voltage={currentReading?.chargingVoltage || 0}
+          percentage={stats?.batteryPercentage || 0}
+        />
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold">Energy Balance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Charged</span>
+                <span className="text-xl font-semibold text-energy-grid">
+                  {stats?.dailyEnergyCharged.toFixed(2)}Wh
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Discharged</span>
+                <span className="text-xl font-semibold text-energy-load">
+                  {stats?.dailyEnergyDischarged.toFixed(2)}Wh
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="font-medium">Net</span>
+                <span className="text-xl font-semibold">
+                  {((stats?.dailyEnergyCharged || 0) - (stats?.dailyEnergyDischarged || 0)).toFixed(2)}Wh
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <PowerGraph data={historicalData} />
     </div>
   );
 };
