@@ -8,10 +8,14 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  Legend
 } from "recharts";
 import { EnergyReading } from "@/services/energyData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useState, useEffect } from "react";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PowerGraphProps {
   data: EnergyReading[];
@@ -39,6 +43,36 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const PowerGraph = ({ data }: PowerGraphProps) => {
   const isMobile = useIsMobile();
+  const [hasData, setHasData] = useState(true);
+  
+  useEffect(() => {
+    // Check if we have valid data
+    if (!data || data.length === 0 || data.every(item => 
+      item.solarPower === 0 && item.inverterLoad === 0)) {
+      setHasData(false);
+    } else {
+      setHasData(true);
+    }
+  }, [data]);
+
+  if (!hasData) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold">Power Output</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>No power data available</AlertDescription>
+          </Alert>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+            Waiting for data...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card>
@@ -77,8 +111,10 @@ const PowerGraph = ({ data }: PowerGraphProps) => {
             <YAxis 
               tick={{ fontSize: 12 }} 
               stroke="currentColor"
+              domain={[0, 'auto']}
             />
             <Tooltip content={<CustomTooltip />} />
+            <Legend />
             <Area
               type="monotone"
               dataKey="solarPower"
@@ -86,6 +122,7 @@ const PowerGraph = ({ data }: PowerGraphProps) => {
               stroke="#FFB800"
               fill="url(#solarPowerGradient)"
               strokeWidth={2}
+              activeDot={{ r: 4 }}
             />
             <Line
               type="monotone"
