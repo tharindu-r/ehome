@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { 
   getHistoricalData, 
@@ -23,16 +22,8 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Load distribution data (simulated)
-  const loadDistribution = [
-    { name: "Lights", value: 35, color: "#8B5CF6" },
-    { name: "HVAC", value: 45, color: "#10B981" },
-    { name: "Appliances", value: 85, color: "#F43F5E" },
-    { name: "Other", value: 20, color: "#FFB800" }
-  ];
-
+  // Load initial data
   useEffect(() => {
-    // Load initial data
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -71,34 +62,34 @@ const Index = () => {
     };
     
     fetchData();
-    
-    // Set up polling for real-time updates
-    const interval = setInterval(async () => {
-      if (error) return; // Don't update if there's an error
-      
-      try {
-        const newReading = await getCurrentReading();
-        setCurrentReading(newReading);
-        setLastUpdated(Date.now());
-        
-        setHistoricalData(prev => {
-          const newData = [...prev, newReading].slice(-96); // Keep last 96 readings
+  }, [error, retryCount]);
+
+  // Separate effect for regular updates to ensure energy balance is updated
+  useEffect(() => {
+    const updateInterval = setInterval(async () => {
+      if (!error && currentReading) {
+        try {
+          const newReading = await getCurrentReading();
+          setCurrentReading(newReading);
+          setLastUpdated(Date.now());
           
-          // Update stats with new data
-          getEnergyStats(newData)
-            .then(updatedStats => setStats(updatedStats))
-            .catch(err => console.error("Error updating stats:", err));
-            
-          return newData;
-        });
-      } catch (error) {
-        console.error("Error updating energy data:", error);
-        // Don't set error state for update failures, just log
+          // Update historical data
+          setHistoricalData(prev => {
+            const newData = [...prev, newReading].slice(-96); // Keep last 96 readings
+            return newData;
+          });
+          
+          // Update stats independently to ensure they refresh
+          const updatedStats = await getEnergyStats([...historicalData, newReading]);
+          setStats(updatedStats);
+        } catch (err) {
+          console.error("Error in update interval:", err);
+        }
       }
     }, 30000); // Update every 30 seconds
     
-    return () => clearInterval(interval);
-  }, [error, retryCount]);
+    return () => clearInterval(updateInterval);
+  }, [error, currentReading, historicalData]);
 
   if (isLoading) {
     return (
@@ -147,7 +138,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-energy-load">
-              {currentReading?.inverterLoad.toFixed(0)}W
+              {Math.round(currentReading?.inverterLoad || 0)}W
             </div>
             <p className="text-sm text-muted-foreground">Current consumption</p>
           </CardContent>

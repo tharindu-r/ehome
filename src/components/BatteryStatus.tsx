@@ -8,15 +8,15 @@ interface BatteryStatusProps {
 }
 
 const getBatteryIcon = (percentage: number) => {
-  if (percentage > 80) return <BatteryFull className="h-6 w-6 text-energy-grid" />;
-  if (percentage > 40) return <BatteryMedium className="h-6 w-6 text-energy-solar" />;
-  return <BatteryLow className="h-6 w-6 text-energy-load" />;
+  if (percentage > 80) return <BatteryFull className="h-6 w-6 text-green-500" />;
+  if (percentage > 40) return <BatteryMedium className="h-6 w-6 text-orange-400" />;
+  return <BatteryLow className="h-6 w-6 text-red-500" />;
 };
 
 const getBatteryColor = (percentage: number) => {
-  if (percentage > 80) return "text-energy-grid";
-  if (percentage > 40) return "text-energy-solar";
-  return "text-energy-load";
+  if (percentage > 80) return "text-green-500";
+  if (percentage > 40) return "text-orange-400";
+  return "text-red-500";
 };
 
 const BatteryStatus = ({ voltage, percentage }: BatteryStatusProps) => {
